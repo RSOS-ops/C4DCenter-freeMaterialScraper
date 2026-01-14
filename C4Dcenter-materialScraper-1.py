@@ -72,6 +72,14 @@ BASE_URL = "https://c4dcenter.com/material-library/"
 MIN_DELAY = 0.5
 MAX_DELAY = 1.9
 
+# Statistics for Summary Report
+stats = {
+    "total_found": 0,
+    "downloaded": 0,
+    "skipped": 0,
+    "errors": 0
+}
+
 # --- 2. BROWSER CONFIGURATION ---
 chrome_options = Options()
 
@@ -98,7 +106,7 @@ driver = webdriver.Chrome(service=service, options=chrome_options)
 downloaded_filenames = []
 
 def wait_for_download_robust(directory, timeout=120):
-    """Waits for download to complete by watching for Chrome temp files."""
+    """Waits for download completion by watching for Chrome temp files."""
     start_time = time.time()
     while time.time() - start_time < 15: 
         if any(f.endswith('.crdownload') or f.endswith('.tmp') for f in os.listdir(directory)):
@@ -133,14 +141,19 @@ try:
             
             all_links = driver.find_elements(By.CSS_SELECTOR, "ul.products li.product a.woocommerce-LoopProduct-link")
             urls = list(dict.fromkeys([l.get_attribute("href") for l in all_links])) 
+            stats["total_found"] += len(urls)
 
             for url in urls:
                 material_slug = url.strip("/").split("/")[-1]
                 
-                # Intelligent Duplicate Detection
+                # Check for existing files
                 if any(material_slug in f.lower() for f in os.listdir(DOWNLOAD_DIR)):
-                    print(f"Skipping: {material_slug}")
+                    print(f"Skipping: {material_slug} (Already exists)")
+                    stats["skipped"] += 1
                     continue
+
+                # NEW: Print current target material
+                print(f"Starting download: {material_slug}...")
 
                 # Human-mimicry delay
                 time.sleep(random.uniform(MIN_DELAY, MAX_DELAY))
@@ -163,19 +176,32 @@ try:
                         
                         if actual_files:
                             print(f"Success: {actual_files[0]} saved.")
+                            stats["downloaded"] += 1
                             if ENABLE_LOGGING: downloaded_filenames.append(actual_files[0])
                 
                 except Exception as e:
                     print(f"Skipped: {material_slug} | Error: {str(e)[:40]}...")
+                    stats["errors"] += 1
 
         except Exception as page_error:
             print(f"Critical error on library page {page_num}: {str(page_error)[:50]}")
 
 finally:
-    # Finalize log generation inside the target download folder
+    # 1. Final Summary Report
+    print("\n" + "="*40)
+    print("           SESSION SUMMARY")
+    print("="*40)
+    print(f"Total Materials Found:  {stats['total_found']}")
+    print(f"Successful Downloads:   {stats['downloaded']}")
+    print(f"Skipped (Duplicates):   {stats['skipped']}")
+    print(f"Errors Encountered:     {stats['errors']}")
+    print("="*40)
+
+    # 2. Finalize log generation inside the target download folder
     if ENABLE_LOGGING and downloaded_filenames:
         log_name = f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         with open(os.path.join(DOWNLOAD_DIR, log_name), "w") as f:
             f.write("\n".join(downloaded_filenames))
+        print(f"Log saved to: {log_name}")
     
     driver.quit()
