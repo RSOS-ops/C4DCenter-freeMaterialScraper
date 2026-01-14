@@ -11,9 +11,6 @@ A high-performance, fully interactive automation tool designed for the systemati
     * **Image Suppression:** Disables image rendering to drastically reduce bandwidth and CPU usage during the crawl.
 * **Stealth & Ethics:**
     * **Human-Mimicry Delays:** Uses randomized sub-2-second intervals (0.5s – 1.9s) to respect server load and avoid robotic request patterns.
-
------UPDATE YOUR OWN RANDOMIZED INTERVAL TO MIMIC HUMAN-NESS. SUGGESTED IS 3-7 SECONDS -----
-
     * **Micro-Action Jitter:** Simulates brief pauses (0.3s – 0.6s) before click actions for enhanced reliability.
 * **Intelligent Logic:**
     * **Duplicate Detection:** Scans the target directory and automatically skips materials already present locally.
