@@ -1,0 +1,21 @@
+LEGAL AND ETHICAL DISCLAIMER
+
+1. FOR EDUCATIONAL PURPOSES ONLY
+This software (the "Script") is provided for educational and research purposes only. It is intended to demonstrate how web automation tools like Selenium interact with web browsers and file systems.
+
+2. COMPLIANCE WITH TERMS OF SERVICE
+Web scraping may violate the Terms of Service (ToS) of certain websites. The user of this Script is solely responsible for reviewing and adhering to the ToS and robots.txt file of any website targeted by this Script.
+
+3. INTELLECTUAL PROPERTY
+The Script is a tool for data collection. It does not grant the user any rights to the content, assets, or 3D materials downloaded. Redistributing copyrighted material obtained via this Script may lead to legal repercussions from the content owners.
+
+4. NO WARRANTY AND LIMITATION OF LIABILITY
+The Script is provided "as is" without warranty of any kind. The author shall not be held liable for:
+- Any suspension or banning of the user's IP address or account by the target website.
+- Any legal action taken by third parties against the user.
+- Any damage to hardware or data resulting from the use of this Script.
+
+5. TRESPASS TO CHATTELS & SERVER LOAD
+Users are advised to use the included randomization and delay features to ensure they do not overwhelm the target website's servers, which could be legally interpreted as a "trespass to chattels" or a denial-of-service event.
+
+By using this Script, you acknowledge that you have read this disclaimer and agree to use the tool responsibly and legally.
