@@ -12,7 +12,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
-# --- 1. COLOR & RUNNING LOG ---
+# --- 1. COLOR & LOGGING ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_LOG = os.path.join(BASE_DIR, "test_debug.log")
 
@@ -32,6 +32,17 @@ def trace(msg):
 
 def status_log(asset_id, count, total):
     print(f"\n{Color.BOLD}{Color.YELLOW}--- TEST ASSET {count}/{total}: {asset_id} ---{Color.END}")
+
+# --- NEW FAILURE LOGGER ---
+def log_failure(download_dir, asset_id, file_name, reason):
+    md_file = os.path.join(download_dir, "failed_downloads.md")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if not os.path.exists(md_file):
+        with open(md_file, "w") as f:
+            f.write("| Timestamp | Asset ID | File Name | Error Reason |\n")
+            f.write("| --- | --- | --- | --- |\n")
+    with open(md_file, "a") as f:
+        f.write(f"| {timestamp} | **{asset_id}** | {file_name} | {reason} |\n")
 
 with open(TEST_LOG, "w") as f:
     f.write(f"--- TEST SESSION START: {datetime.now()} ---\n")
@@ -81,6 +92,7 @@ def run_test_scraper():
         load_images = input("Enable images? (y/n): ").lower() in ['y', 'yes']
         block_ads = input("Block ads? (y/n): ").lower() in ['y', 'yes']
 
+        trace("Spawning browser...")
         chrome_options = Options()
         chrome_options.add_experimental_option("prefs", {
             "download.default_directory": download_dir,
@@ -101,12 +113,19 @@ def run_test_scraper():
 
         queue = load_json(QUEUE_FILE).get("pending", [])
         if not queue:
-            trace("Indexing assets for test...")
-            driver.get("https://ambientcg.com/list?type=material%2Cdecal%2Catlas&sort=popular")
+            # UPDATED URL
+            trace("Fetching test index...")
+            driver.get("https://ambientcg.com/list?sort=popular")
             time.sleep(5)
-            blocks = driver.find_elements(By.CLASS_NAME, "asset-block")
-            ids = [el.get_attribute("id").replace("asset-", "") for el in blocks if el.get_attribute("id")]
-            queue = [aid for aid in ids if aid not in processed][:TEST_ITEM_LIMIT]
+            
+            while len(queue) < TEST_ITEM_LIMIT and not stop_requested:
+                blocks = driver.find_elements(By.CLASS_NAME, "asset-block")
+                ids = [el.get_attribute("id").replace("asset-", "") for el in blocks if el.get_attribute("id")]
+                queue = [aid for aid in ids if aid not in processed][:TEST_ITEM_LIMIT]
+                if len(queue) < TEST_ITEM_LIMIT:
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(2)
+                else: break
             save_json(QUEUE_FILE, {"pending": queue})
 
         while queue and not stop_requested and session_count < TEST_ITEM_LIMIT:
@@ -122,21 +141,45 @@ def run_test_scraper():
             try:
                 driver.get(f"https://ambientcg.com/view?id={asset_id}")
                 time.sleep(1.5)
-                links = driver.find_elements(By.XPATH, "//a[contains(., 'PNG')]")
                 
+                # UPDATED SELECTOR
+                links = driver.find_elements(By.XPATH, "//a[contains(@href, 'get?file=')]")
+                
+                if not links:
+                    trace(f"No links for {asset_id}")
+                    log_failure(download_dir, asset_id, "ALL", "No download links found")
+                    stats["failed"] += 1
+                    continue
+
+                clicked = False
                 for link in links:
                     label = link.text.strip().replace('\n', ' ')
-                    trace(f"Triggering {label}")
-                    driver.execute_script("arguments[0].click();", link)
-                    time.sleep(1)
+                    
+                    # FILTER: Skip JPG
+                    if "JPG" in label.upper():
+                        trace(f"Skipping JPG: {label}")
+                        continue
+                    
+                    try:
+                        trace(f"Triggering {label}")
+                        driver.execute_script("arguments[0].click();", link)
+                        time.sleep(1)
+                        clicked = True
+                    except Exception as click_err:
+                        trace(f"Click Error: {click_err}")
+                        log_failure(download_dir, asset_id, label, str(click_err))
+
+                if clicked:
+                    with open(history_file, "a") as hf: hf.write(f"{asset_id}\n")
+                    stats["success"] += 1
                 
-                with open(history_file, "a") as hf: hf.write(f"{asset_id}\n")
                 save_json(QUEUE_FILE, {"pending": queue})
                 session_count += 1
-                stats["success"] += 1
                 time.sleep(random.uniform(1.5, 3))
+
             except Exception as e:
                 trace(f"FAILED on {asset_id}: {str(e)}")
+                log_failure(download_dir, asset_id, "CRITICAL", str(e))
                 stats["failed"] += 1
                 save_json(QUEUE_FILE, {"pending": queue})
 
